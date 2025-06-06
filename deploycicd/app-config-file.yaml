@@ -1,0 +1,19 @@
+
+deployments:
+- valueFile: "value-dev.yaml"
+  targetCluster: "tls-dev"
+  instanceName : "fec"
+  env: "dev"
+  pathToProd: "true"
+  createPullRequest: "false"
+- valueFile: "value-preprod.yaml"
+  targetCluster: "tls-prod"
+  instanceName: "fec-preprod"
+  env: "preprod"
+  pathToProd: "true"
+- valueFile: "value-prod.yaml"
+  targetCluster: "tls-prod"
+  instanceName: "fec-prod"
+  env: "prod"
+  pathToProd: "true"
+
