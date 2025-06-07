@@ -52,7 +52,7 @@ func buildJobNameByDeployment(Deployments []Deployment) map[string]Deployment {
 
 		if _, exists := jobNameByDeployment[jobName]; exists {
 			log.Fatalf("Job name %s already exists. "+
-				"Please ensure unique IntanceName/TargetCluster (%s/%s) .",
+				"Please ensure unique InstanceName/TargetCluster (%s/%s) .",
 				jobName, deployment.InstanceName, deployment.TargetCluster)
 		}
 		jobNameByDeployment[jobName] = deployment
