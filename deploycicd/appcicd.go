@@ -99,8 +99,12 @@ include:
 func getDeployJob(jobName, valueFile, targetCluster, instanceName,
 	env, needs string) string {
 
-	if needs == "" {
-		jobTemplate := `
+	needsBlock := ""
+	if needs != "" {
+		needsBlock = fmt.Sprintf("  needs:\n    - %s\n", needs)
+	}
+
+	jobTemplate := `
 %s:
   variables:
     VALUE_FILE: %s
