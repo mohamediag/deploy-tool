@@ -15,7 +15,7 @@ type Deployment struct {
 	TargetCluster string `yaml:"targetCluster"`
 	InstanceName  string `yaml:"instanceName"`
 	Env           string `yaml:"env"`
-	PathToProd    string `yaml:"pathToProd"`
+	PathToProd    bool   `yaml:"pathToProd"`
 }
 
 func GenerateDeployPipeline(configFile string) {
@@ -36,10 +36,52 @@ func GenerateDeployPipeline(configFile string) {
 	generatePipeline(config.Deployments)
 
 }
-func generatePipeline(Deployments []Deployment) {
+
+var envByStage = map[string]string{
+	"dev":     "Push Manifests Dev",
+	"preprod": "Push Manifests Preprod",
+	"prod":    "Push Manifests Prod",
+}
+
+func buildJobNameByDeployment(Deployments []Deployment) map[string]Deployment {
+	jobNameByDeployment := make(map[string]Deployment)
 	for _, deployment := range Deployments {
-		log.Infof("Processing deployment %s", deployment.InstanceName)
+		jobName := fmt.Sprintf("push-%s-to-%s",
+			deployment.InstanceName,
+			deployment.TargetCluster)
+
+		if _, exists := jobNameByDeployment[jobName]; exists {
+			log.Fatalf("Job name %s already exists. "+
+				"Please ensure unique IntanceName/TargetCluster (%s/%s) .",
+				jobName, deployment.InstanceName, deployment.TargetCluster)
+		}
+		jobNameByDeployment[jobName] = deployment
 	}
+	log.Infof("Generated job names by deployment: %v", jobNameByDeployment)
+	return jobNameByDeployment
+}
+
+func generatePipeline(Deployments []Deployment) string {
+	deployPipeline := getConfigConfigImport()
+	jobNameByDeployment := buildJobNameByDeployment(Deployments)
+
+	for jobName, deployment := range jobNameByDeployment {
+		needs := ""
+		if deployment.Env == "preprod" || deployment.Env == "prod" {
+			needs = extractNeededPreviousJobNameForEnv(
+				jobNameByDeployment,
+				deployment.Env)
+		}
+		deployPipeline += getDeployJob(
+			jobName,
+			deployment.ValueFile,
+			deployment.TargetCluster,
+			deployment.InstanceName,
+			deployment.Env,
+			needs)
+	}
+	log.Infof("Generated pipeline %s", deployPipeline)
+	return deployPipeline
 }
 
 func getConfigConfigImport() string {
@@ -49,13 +91,16 @@ include:
     ref: 'master'
     file:
       - 'gitlab-ci/templates/cno-apps-multistage-pipeline.gitlab-ci.yaml'
+
 `
-	return fmt.Sprintf(conf)
+	return conf
 }
 
-func getDeployBranch(valueFile, targetCluster, instanceName,
-	env, stage string) string {
-	conf := `
+func getDeployJob(jobName, valueFile, targetCluster, instanceName,
+	env, needs string) string {
+
+	if needs == "" {
+		jobTemplate := `
 %s:
   variables:
     VALUE_FILE: %s
@@ -66,17 +111,42 @@ func getDeployBranch(valueFile, targetCluster, instanceName,
   extends: .push-to-target-cluster-repo
   when: manual
 `
-	return fmt.Sprintf(conf, environment, entity, environment, branchName, image)
+		return fmt.Sprintf(jobTemplate, jobName, valueFile, targetCluster,
+			instanceName, env, envByStage[env])
+	} else {
+		jobTemplate := `
+%s:
+  variables:
+    VALUE_FILE: %s
+    TARGET_CLUSTER: %s
+    INSTANCENAME: %s
+    ENV: %s
+  stage: %s
+  needs:
+    - %s
+  extends: .push-to-target-cluster-repo
+  when: manual
+`
+		return fmt.Sprintf(jobTemplate, jobName, valueFile, targetCluster,
+			instanceName, env, envByStage[env], needs)
+	}
+
 }
 
-/*
-ValueFile     string `yaml:"valueFile"`
-TargetCluster string `yaml:"targetCluster"`
-InstanceName  string `yaml:"instanceName"`
-Env           string `yaml:"env"`
-PathToProd    string `yaml:"pathToProd"`
-
-  - Push Manifests Dev
-  - Push Manifests Preprod
-  - Push Manifests Prod
-*/
+func extractNeededPreviousJobNameForEnv(jobNameByDeployment map[string]Deployment, env string) string {
+	if env == "preprod" {
+		for jobName, deployment := range jobNameByDeployment {
+			if deployment.Env == "dev" && deployment.PathToProd {
+				return jobName
+			}
+		}
+	}
+	if env == "prod" {
+		for jobName, deployment := range jobNameByDeployment {
+			if deployment.Env == "preprod" && deployment.PathToProd {
+				return jobName
+			}
+		}
+	}
+	return ""
+}
