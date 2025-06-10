@@ -4,7 +4,7 @@ deployments:
   valueFile: "value-dev.yaml"
   targetCluster: "dev-01"
   env: "dev"
-  pathToProd: "true"
+  pathToProd: true
 - instanceName : "my-app-feature-1"
   valueFile: "value-dev-feature-1.yaml"
   targetCluster: "dev-01"
@@ -13,12 +13,11 @@ deployments:
   valueFile: "value-preprod.yaml"
   targetCluster: "prod-01"
   env: "preprod"
-  pathToProd: "true"
+  pathToProd: true
 - instanceName: "my-app-demo"
   valueFile: "value-demo.yaml"
   targetCluster: "prod-01"
   env: "preprod"
-  pathToProd: "true"
 - instanceName: "my-app-prod"
   valueFile: "value-prod.yaml"
   targetCluster: "prod-01"
