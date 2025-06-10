@@ -32,7 +32,14 @@ func GenerateDeployPipeline(configFile string) {
 
 	log.Infof("Loaded configuration with %d deployments", len(config.Deployments))
 
-	generatePipeline(config.Deployments)
+	deployPipeline := generatePipeline(config.Deployments)
+
+	//Write the generated pipeline to a file named "deploy-pipeline.yaml"
+	err = os.WriteFile("deploy-pipeline.yaml", []byte(deployPipeline), 0644)
+	if err != nil {
+		log.Fatalf("Error when writing deploy-pipeline.yaml: %v", err)
+	}
+
 }
 
 var envByStage = map[string]string{
