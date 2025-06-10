@@ -30,11 +30,9 @@ func GenerateDeployPipeline(configFile string) {
 		log.Fatalf("Error when unmarshalling config file %s: %v", configFile, err)
 	}
 
-	// Utilisez config ici
 	log.Infof("Loaded configuration with %d deployments", len(config.Deployments))
 
 	generatePipeline(config.Deployments)
-
 }
 
 var envByStage = map[string]string{
@@ -68,9 +66,7 @@ func generatePipeline(Deployments []Deployment) string {
 	for jobName, deployment := range jobNameByDeployment {
 		needs := ""
 		if deployment.Env == "preprod" || deployment.Env == "prod" {
-			needs = extractNeededPreviousJobNameForEnv(
-				jobNameByDeployment,
-				deployment.Env)
+			needs = extractNeededPreviousJobNameForEnv(jobNameByDeployment, deployment.Env)
 		}
 		deployPipeline += getDeployJob(
 			jobName,
@@ -96,45 +92,25 @@ include:
 	return conf
 }
 
-func getDeployJob(jobName, valueFile, targetCluster, instanceName,
-	env, needs string) string {
-
-	needsBlock := ""
+func getDeployJob(jobName, valueFile, targetCluster, instanceName, env, needs string) string {
+	baseTemplate := `
+%s:
+  variables:
+    VALUE_FILE: %s
+    TARGET_CLUSTER: %s
+    INSTANCENAME: %s
+    ENV: %s
+  stage: %s
+  extends: .push-to-target-cluster-repo
+  when: manual
+`
+	needsSection := ""
 	if needs != "" {
-		needsBlock = fmt.Sprintf("  needs:\n    - %s\n", needs)
+		needsSection = fmt.Sprintf("  needs:\n    - %s\n", needs)
 	}
+	jobTemplate := baseTemplate + needsSection
 
-	jobTemplate := `
-%s:
-  variables:
-    VALUE_FILE: %s
-    TARGET_CLUSTER: %s
-    INSTANCENAME: %s
-    ENV: %s
-  stage: %s
-  extends: .push-to-target-cluster-repo
-  when: manual
-`
-		return fmt.Sprintf(jobTemplate, jobName, valueFile, targetCluster,
-			instanceName, env, envByStage[env])
-	} else {
-		jobTemplate := `
-%s:
-  variables:
-    VALUE_FILE: %s
-    TARGET_CLUSTER: %s
-    INSTANCENAME: %s
-    ENV: %s
-  stage: %s
-  needs:
-    - %s
-  extends: .push-to-target-cluster-repo
-  when: manual
-`
-		return fmt.Sprintf(jobTemplate, jobName, valueFile, targetCluster,
-			instanceName, env, envByStage[env], needs)
-	}
-
+	return fmt.Sprintf(jobTemplate, jobName, valueFile, targetCluster, instanceName, env, envByStage[env])
 }
 
 func extractNeededPreviousJobNameForEnv(jobNameByDeployment map[string]Deployment, env string) string {
