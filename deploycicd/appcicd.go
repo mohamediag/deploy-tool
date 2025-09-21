@@ -2,9 +2,10 @@ package deployappcicd
 
 import (
 	"fmt"
+	"os"
+
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
-	"os"
 )
 
 type Config struct {
@@ -90,10 +91,10 @@ func generatePipeline(Deployments []Deployment) string {
 func getConfigConfigImport() string {
 	conf := `
 include:
-  - project: 'digital-factory/devops/continuous-integration-delivery'
+  - project: '/devops/continuous-integration-delivery'
     ref: 'master'
     file:
-      - 'gitlab-ci/templates/cno-apps-multistage-pipeline.gitlab-ci.yaml'
+      - 'gitlab-ci/templates/template.gitlab-ci.yaml'
 
 `
 	return conf
